@@ -1,0 +1,16 @@
+package com.lg.reminder.dto.response;
+
+import com.lg.reminder.enums.Role;
+import lombok.*;
+
+@Data @Builder @NoArgsConstructor @AllArgsConstructor
+public class AuthResponse {
+    private String accessToken;
+    private String refreshToken;
+    private String tokenType = "Bearer";
+    private Long userId;
+    private String fullName;
+    private String email;
+    private Role role;
+    private boolean emailVerified;
+}
