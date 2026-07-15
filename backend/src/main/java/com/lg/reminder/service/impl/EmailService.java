@@ -104,6 +104,14 @@ public class EmailService {
             log.error("Failed to send password reset email: {}", e.getMessage());
         }
     }
+   @Async
+    public void sendCustomReminderEmail(String toEmail, String subject, String htmlBody) {
+        try {
+            sendEmail(toEmail, subject, htmlBody);
+        } catch (Exception e) {
+            log.error("Failed to send custom reminder email to {}: {}", toEmail, e.getMessage());
+        }
+    }
 
     @Async
     public void sendTaskAssignmentEmail(String toEmail, String employeeName, Task task) {
