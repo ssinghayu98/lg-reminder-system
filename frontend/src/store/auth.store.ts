@@ -71,9 +71,9 @@ class AuthStore {
   }
 
   getState() { return this.state }
-  subscribe(listener: () => void) {
+ subscribe(listener: () => void) {
     this.listeners.add(listener)
-    return () => this.listeners.delete(listener)
+    return () => { this.listeners.delete(listener) }
   }
 }
 
