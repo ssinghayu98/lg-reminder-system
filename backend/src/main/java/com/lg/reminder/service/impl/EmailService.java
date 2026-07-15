@@ -4,23 +4,38 @@ import com.lg.reminder.entity.Task;
 import com.lg.reminder.entity.User;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpEntity;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
-import jakarta.mail.MessagingException;
-import jakarta.mail.internet.MimeMessage;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class EmailService {
 
-    private final JavaMailSender mailSender;
     private final TemplateEngine templateEngine;
+    private final RestTemplate restTemplate = new RestTemplate();
+
+    @Value("${app.brevo.api-key}")
+    private String brevoApiKey;
+
+    @Value("${app.brevo.sender-email}")
+    private String senderEmail;
+
+    @Value("${app.brevo.sender-name:LG Reminder System}")
+    private String senderName;
+
+    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
 
     @Async
     public void sendReminderEmail(String toEmail, String employeeName, Task task) {
@@ -34,7 +49,7 @@ public class EmailService {
             context.setVariable("priority", task.getPriority().name());
 
             String html = templateEngine.process("email/reminder", context);
-            sendEmail(toEmail, "LG Employee Reminder System – Task Update Required", html);
+            sendEmail(toEmail, "LG Employee Reminder System - Task Update Required", html);
             log.info("Reminder email sent to {} for task {}", toEmail, task.getId());
         } catch (Exception e) {
             log.error("Failed to send reminder email to {}: {}", toEmail, e.getMessage());
@@ -54,7 +69,7 @@ public class EmailService {
             context.setVariable("status", task.getStatus().name());
 
             String html = templateEngine.process("email/escalation", context);
-            sendEmail(managerEmail, "ESCALATION: Overdue Task – " + task.getTitle(), html);
+            sendEmail(managerEmail, "ESCALATION: Overdue Task - " + task.getTitle(), html);
         } catch (Exception e) {
             log.error("Failed to send escalation email: {}", e.getMessage());
         }
@@ -108,12 +123,33 @@ public class EmailService {
         }
     }
 
-    private void sendEmail(String to, String subject, String htmlBody) throws MessagingException {
-        MimeMessage message = mailSender.createMimeMessage();
-        MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
-        helper.setTo(to);
-        helper.setSubject(subject);
-        helper.setText(htmlBody, true);
-        mailSender.send(message);
+    private void sendEmail(String to, String subject, String htmlBody) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.set("api-key", brevoApiKey);
+        headers.set("accept", "application/json");
+        headers.setContentType(MediaType.APPLICATION_JSON);
+
+        Map<String, Object> sender = new HashMap<>();
+        sender.put("name", senderName);
+        sender.put("email", senderEmail);
+
+        Map<String, Object> recipient = new HashMap<>();
+        recipient.put("email", to);
+
+        Map<String, Object> body = new HashMap<>();
+        body.put("sender", sender);
+        body.put("to", List.of(recipient));
+        body.put("subject", subject);
+        body.put("htmlContent", htmlBody);
+
+        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
+
+        try {
+            restTemplate.postForEntity(BREVO_API_URL, request, String.class);
+            log.info("Email sent via Brevo API to {}", to);
+        } catch (Exception e) {
+            log.error("Brevo API email send failed to {}: {}", to, e.getMessage());
+            throw new RuntimeException("Brevo email send failed: " + e.getMessage());
+        }
     }
 }

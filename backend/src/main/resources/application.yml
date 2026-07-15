@@ -22,20 +22,7 @@ spring:
         dialect: org.hibernate.dialect.MySQL8Dialect
         format_sql: true
 
-  mail:
-    host: ${MAIL_HOST:smtp.gmail.com}
-    port: ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME}
-    password: ${MAIL_PASSWORD}
-    properties:
-      mail:
-        smtp:
-          auth: true
-          starttls:
-            enable: true
-            required: true
-    default-encoding: UTF-8
-
+  
   servlet:
     multipart:
       max-file-size: 10MB
@@ -61,6 +48,10 @@ app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
 
+  brevo:
+    api-key: ${BREVO_API_KEY}
+    sender-email: ${BREVO_SENDER_EMAIL}
+    sender-name: ${BREVO_SENDER_NAME:LG Reminder System}
   file:
     upload-dir: ${UPLOAD_DIR:./uploads}
 
