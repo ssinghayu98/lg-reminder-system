@@ -1,3 +1,6 @@
-node_modules/ 
-target/ 
-.env 
+node_modules/
+target/
+.env
+dist/
+build/
+.DS_Store
