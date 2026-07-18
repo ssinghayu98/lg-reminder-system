@@ -14,8 +14,9 @@ import org.springframework.web.client.RestTemplate;
 import org.thymeleaf.TemplateEngine;
 import org.thymeleaf.context.Context;
 
+import java.nio.charset.StandardCharsets;
+import java.util.Base64;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 
 @Service
@@ -26,16 +27,20 @@ public class EmailService {
     private final TemplateEngine templateEngine;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    @Value("${app.brevo.api-key}")
-    private String brevoApiKey;
+    @Value("${app.gmail.client-id}")
+    private String clientId;
 
-    @Value("${app.brevo.sender-email}")
+    @Value("${app.gmail.client-secret}")
+    private String clientSecret;
+
+    @Value("${app.gmail.refresh-token}")
+    private String refreshToken;
+
+    @Value("${app.gmail.sender-email}")
     private String senderEmail;
 
-    @Value("${app.brevo.sender-name:LG Reminder System}")
-    private String senderName;
-
-    private static final String BREVO_API_URL = "https://api.brevo.com/v3/smtp/email";
+    private static final String TOKEN_URL = "https://oauth2.googleapis.com/token";
+    private static final String SEND_URL = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 
     @Async
     public void sendReminderEmail(String toEmail, String employeeName, Task task) {
@@ -104,14 +109,6 @@ public class EmailService {
             log.error("Failed to send password reset email: {}", e.getMessage());
         }
     }
-   @Async
-    public void sendCustomReminderEmail(String toEmail, String subject, String htmlBody) {
-        try {
-            sendEmail(toEmail, subject, htmlBody);
-        } catch (Exception e) {
-            log.error("Failed to send custom reminder email to {}: {}", toEmail, e.getMessage());
-        }
-    }
 
     @Async
     public void sendTaskAssignmentEmail(String toEmail, String employeeName, Task task) {
@@ -131,33 +128,56 @@ public class EmailService {
         }
     }
 
-    private void sendEmail(String to, String subject, String htmlBody) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("api-key", brevoApiKey);
-        headers.set("accept", "application/json");
-        headers.setContentType(MediaType.APPLICATION_JSON);
-
-        Map<String, Object> sender = new HashMap<>();
-        sender.put("name", senderName);
-        sender.put("email", senderEmail);
-
-        Map<String, Object> recipient = new HashMap<>();
-        recipient.put("email", to);
-
-        Map<String, Object> body = new HashMap<>();
-        body.put("sender", sender);
-        body.put("to", List.of(recipient));
-        body.put("subject", subject);
-        body.put("htmlContent", htmlBody);
-
-        HttpEntity<Map<String, Object>> request = new HttpEntity<>(body, headers);
-
+    @Async
+    public void sendCustomReminderEmail(String toEmail, String subject, String htmlBody) {
         try {
-            restTemplate.postForEntity(BREVO_API_URL, request, String.class);
-            log.info("Email sent via Brevo API to {}", to);
+            sendEmail(toEmail, subject, htmlBody);
         } catch (Exception e) {
-            log.error("Brevo API email send failed to {}: {}", to, e.getMessage());
-            throw new RuntimeException("Brevo email send failed: " + e.getMessage());
+            log.error("Failed to send custom reminder email to {}: {}", toEmail, e.getMessage());
+        }
+    }
+
+    private String getAccessToken() {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_FORM_URLENCODED);
+
+        String body = "client_id=" + clientId
+                + "&client_secret=" + clientSecret
+                + "&refresh_token=" + refreshToken
+                + "&grant_type=refresh_token";
+
+        HttpEntity<String> request = new HttpEntity<>(body, headers);
+        Map<?, ?> response = restTemplate.postForObject(TOKEN_URL, request, Map.class);
+        return (String) response.get("access_token");
+    }
+
+    private void sendEmail(String to, String subject, String htmlBody) {
+        try {
+            String accessToken = getAccessToken();
+
+            String mimeMessage = "From: " + senderEmail + "\r\n"
+                    + "To: " + to + "\r\n"
+                    + "Subject: " + subject + "\r\n"
+                    + "MIME-Version: 1.0\r\n"
+                    + "Content-Type: text/html; charset=UTF-8\r\n\r\n"
+                    + htmlBody;
+
+            String encodedMessage = Base64.getUrlEncoder()
+                    .encodeToString(mimeMessage.getBytes(StandardCharsets.UTF_8));
+
+            HttpHeaders headers = new HttpHeaders();
+            headers.setBearerAuth(accessToken);
+            headers.setContentType(MediaType.APPLICATION_JSON);
+
+            Map<String, String> payload = new HashMap<>();
+            payload.put("raw", encodedMessage);
+
+            HttpEntity<Map<String, String>> request = new HttpEntity<>(payload, headers);
+            restTemplate.postForEntity(SEND_URL, request, String.class);
+            log.info("Email sent via Gmail API to {}", to);
+        } catch (Exception e) {
+            log.error("Gmail API email send failed to {}: {}", to, e.getMessage());
+            throw new RuntimeException("Gmail email send failed: " + e.getMessage());
         }
     }
 }

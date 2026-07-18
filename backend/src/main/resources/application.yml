@@ -3,7 +3,8 @@ spring:
     lazy-initialization: true
   application:
     name: lg-employee-reminder
-
+main:
+    lazy-initialization: true
   datasource:
     url: ${DB_URL:jdbc:mysql://localhost:3306/lg_reminder?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC}
     username: ${DB_USERNAME:lguser}
@@ -50,10 +51,12 @@ app:
   frontend:
     url: ${FRONTEND_URL:http://localhost:5173}
 
-  brevo:
-    api-key: ${BREVO_API_KEY}
-    sender-email: ${BREVO_SENDER_EMAIL}
-    sender-name: ${BREVO_SENDER_NAME:LG Reminder System}
+  gmail:
+    client-id: ${GMAIL_CLIENT_ID}
+    client-secret: ${GMAIL_CLIENT_SECRET}
+    refresh-token: ${GMAIL_REFRESH_TOKEN}
+    sender-email: ${GMAIL_SENDER_EMAIL}
+
   file:
     upload-dir: ${UPLOAD_DIR:./uploads}
 
