@@ -1,4 +1,6 @@
 # LG Employee Reminder System
+vercel link:- https://lg-reminder-system.vercel.app/login
+backend:- https://dashboard.render.com/web/srv-d9b2o2hkh4rs73cc7tjg
 
 A production-ready enterprise web application for automated employee task reminders, deadline tracking, and escalation management.
 
